@@ -33,15 +33,32 @@ HDC testdc = NULL;
 int WINAPI
 MyFillRect(HDC hDC, CONST RECT *lprc, HBRUSH hbr)
 {
-    RECT rc;
+	BOOL replace = 0;
+	COLORREF color = RGB(0, 0, 0);
     if (bgimg_image == NULL)
         return OrigFillRect(hDC, lprc, hbr);
-    rc.top = 0;
-    rc.bottom = 1;
-    rc.left = 0;
-    rc.right = 1;
-    OrigFillRect(testdc, &rc, hbr);
-    if (GetPixel(testdc, 0, 0) == RGB((bgimg_color >> 16) & 0xFF, (bgimg_color >> 8) & 0xFF, bgimg_color & 0xFF))
+	color = RGB((bgimg_color >> 16) & 0xFF, (bgimg_color >> 8) & 0xFF, bgimg_color & 0xFF);
+#if 0
+	{
+		RECT rc;
+		rc.top = 0;
+		rc.left = 0;
+		rc.right = 1;
+		rc.bottom = 1;
+		FillRect(testdc, &rc, hbr);
+		if (GetPixel(testdc, 0, 0) == color) replace = 1;
+	}
+#else
+	{
+		LOGBRUSH lb;
+		if (GetObject(hbr, sizeof(lb), &lb) > 0) {
+			if (lb.lbStyle == BS_SOLID && lb.lbColor == color) {
+				replace = 1;
+			}
+		}
+	}
+#endif
+    if (replace != 0)
         return OrigFillRect(hDC, lprc, bgimg_image);
     else
         return OrigFillRect(hDC, lprc, hbr);
@@ -268,6 +285,10 @@ bgimg_set_image(const char *path)
     return 0;
 }
 
+//! flag: -O2
+//! int: objs/$(target)
+//! link: winmm, user32, gdi32
+//! mode: dll
 BOOL WINAPI
 DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 {
